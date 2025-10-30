@@ -36,7 +36,8 @@ class Auth {
     }
 }
 
-const auth = new Auth();
+const API_URL = '/api';
+
 const loginForm = document.getElementById('loginForm');
 const registerFormElement = document.getElementById('registerFormElement');
 const registerForm = document.getElementById('registerForm');
@@ -56,22 +57,54 @@ showLoginLink.addEventListener('click', (e) => {
     loginForm.parentElement.classList.remove('hidden');
 });
 
-// Handle Login
-loginForm.addEventListener('submit', (e) => {
+async function apiRegister(username, password) {
+    const res = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Registration failed');
+    }
+    return true;
+}
+
+async function apiLogin(username, password) {
+    const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Login failed');
+    }
+    const data = await res.json();
+    return data.token;
+}
+
+// Handle Login (calls API)
+loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    removeMessages();
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
 
-    if (auth.login(username, password)) {
+    try {
+        const token = await apiLogin(username, password);
+        localStorage.setItem('token', token);
+        localStorage.setItem('currentUser', username);
         window.location.href = 'expenses.html';
-    } else {
-        showError(loginForm, 'Invalid username or password');
+    } catch (err) {
+        showError(loginForm, err.message || 'Invalid username or password');
     }
 });
 
-// Handle Registration
-registerFormElement.addEventListener('submit', (e) => {
+// Handle Registration (calls API)
+registerFormElement.addEventListener('submit', async (e) => {
     e.preventDefault();
+    removeMessages();
     const username = document.getElementById('regUsername').value;
     const password = document.getElementById('regPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
@@ -81,14 +114,15 @@ registerFormElement.addEventListener('submit', (e) => {
         return;
     }
 
-    if (auth.register(username, password)) {
+    try {
+        await apiRegister(username, password);
         showSuccess(registerFormElement, 'Registration successful! Please login.');
         setTimeout(() => {
             registerForm.classList.add('hidden');
             loginForm.parentElement.classList.remove('hidden');
-        }, 1500);
-    } else {
-        showError(registerFormElement, 'Username already exists');
+        }, 1200);
+    } catch (err) {
+        showError(registerFormElement, err.message || 'Registration failed');
     }
 });
 

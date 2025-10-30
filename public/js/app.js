@@ -1,12 +1,11 @@
-// Check if user is logged in
-const currentUser = localStorage.getItem('currentUser');
-if (!currentUser) {
-    window.location.href = 'login.html';
+const API_URL = '/api';
+
+const token = localStorage.getItem('token');
+if (!token) {
+    window.location.href = 'index.html';
 }
 
-// Initialize user's expenses
-const users = JSON.parse(localStorage.getItem('users')) || {};
-let expenses = users[currentUser]?.expenses || [];
+let expenses = [];
 
 // Add logout button
 const logoutBtn = document.createElement('button');
@@ -16,7 +15,8 @@ document.querySelector('.container').insertBefore(logoutBtn, document.querySelec
 
 logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('currentUser');
-    window.location.href = 'login.html';
+    localStorage.removeItem('token');
+    window.location.href = 'index.html';
 });
 
 // DOM Elements
@@ -30,35 +30,68 @@ const totalAmountElement = document.getElementById('totalAmount');
 // Set today's date as default
 dateInput.valueAsDate = new Date();
 
+// Fetch expenses from API
+async function fetchExpenses() {
+    try {
+        const res = await fetch(`${API_URL}/expenses`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to fetch expenses');
+        expenses = await res.json();
+        renderExpenses();
+    } catch (err) {
+        console.error('Error fetching expenses:', err);
+    }
+}
+
 // Add expense
-expenseForm.addEventListener('submit', (e) => {
+expenseForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const expense = {
-        id: Date.now(),
+    const expenseData = {
         description: descriptionInput.value,
         amount: parseFloat(amountInput.value),
         date: dateInput.value
     };
 
-    expenses.push(expense);
-    saveExpenses();
-    renderExpenses();
-    expenseForm.reset();
-    dateInput.valueAsDate = new Date();
+    try {
+        const res = await fetch(`${API_URL}/expenses`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(expenseData)
+        });
+        if (!res.ok) throw new Error('Failed to add expense');
+        const newExpense = await res.json();
+        expenses.unshift(newExpense);
+        renderExpenses();
+        expenseForm.reset();
+        dateInput.valueAsDate = new Date();
+    } catch (err) {
+        console.error('Error adding expense:', err);
+    }
 });
 
-// Save expenses to localStorage
-function saveExpenses() {
-    users[currentUser].expenses = expenses;
-    localStorage.setItem('users', JSON.stringify(users));
+// Delete expense
+async function deleteExpense(id) {
+    try {
+        const res = await fetch(`${API_URL}/expenses/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to delete');
+        expenses = expenses.filter(expense => expense._id !== id);
+        renderExpenses();
+    } catch (err) {
+        console.error('Error deleting expense:', err);
+    }
 }
 
-// Delete expense
-function deleteExpense(id) {
-    expenses = expenses.filter(expense => expense.id !== id);
-    saveExpenses();
-    renderExpenses();
+// Calculate total
+function calculateTotal() {
+    return expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0).toFixed(2);
 }
 
 // Format date
@@ -67,30 +100,28 @@ function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString(undefined, options);
 }
 
-// Calculate total
-function calculateTotal() {
-    return expenses.reduce((total, expense) => total + expense.amount, 0).toFixed(2);
-}
-
 // Render expenses
 function renderExpenses() {
     expensesList.innerHTML = '';
     totalAmountElement.textContent = calculateTotal();
-
-    expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     expenses.forEach(expense => {
         const expenseElement = document.createElement('div');
         expenseElement.className = 'expense-item';
         expenseElement.innerHTML = `
             <div>${expense.description}</div>
-            <div>$${expense.amount.toFixed(2)}</div>
+            <div>$${parseFloat(expense.amount).toFixed(2)}</div>
             <div>${formatDate(expense.date)}</div>
-            <button class="delete-btn" onclick="deleteExpense(${expense.id})">Delete</button>
+            <button class="delete-btn" data-id="${expense._id}">Delete</button>
         `;
         expensesList.appendChild(expenseElement);
     });
+
+    // attach delete handlers
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteExpense(btn.getAttribute('data-id')));
+    });
 }
 
-// Initial render
-renderExpenses();
+// Initial fetch
+fetchExpenses();
