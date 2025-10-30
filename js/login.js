@@ -63,7 +63,7 @@ loginForm.addEventListener('submit', (e) => {
     const password = document.getElementById('password').value;
 
     if (auth.login(username, password)) {
-        window.location.href = 'index.html';
+        window.location.href = 'expenses.html';
     } else {
         showError(loginForm, 'Invalid username or password');
     }
