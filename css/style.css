@@ -121,3 +121,15 @@ input {
         margin-bottom: 0.5rem;
     }
 }
+
+.logout-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: auto;
+    background-color: #e74c3c;
+}
+
+.logout-btn:hover {
+    background-color: #c0392b;
+}

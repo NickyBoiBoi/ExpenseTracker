@@ -1,5 +1,23 @@
-// Initialize expenses array from localStorage or empty array
-let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+// Check if user is logged in
+const currentUser = localStorage.getItem('currentUser');
+if (!currentUser) {
+    window.location.href = 'login.html';
+}
+
+// Initialize user's expenses
+const users = JSON.parse(localStorage.getItem('users')) || {};
+let expenses = users[currentUser]?.expenses || [];
+
+// Add logout button
+const logoutBtn = document.createElement('button');
+logoutBtn.textContent = 'Logout';
+logoutBtn.className = 'btn logout-btn';
+document.querySelector('.container').insertBefore(logoutBtn, document.querySelector('h1'));
+
+logoutBtn.addEventListener('click', () => {
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+});
 
 // DOM Elements
 const expenseForm = document.getElementById('expenseForm');
@@ -32,7 +50,8 @@ expenseForm.addEventListener('submit', (e) => {
 
 // Save expenses to localStorage
 function saveExpenses() {
-    localStorage.setItem('expenses', JSON.stringify(expenses));
+    users[currentUser].expenses = expenses;
+    localStorage.setItem('users', JSON.stringify(users));
 }
 
 // Delete expense
